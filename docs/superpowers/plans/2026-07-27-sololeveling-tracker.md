@@ -1725,12 +1725,12 @@ vi.mock('../services/dataService.js', () => ({
   readTable: vi.fn().mockResolvedValue([]),
 }))
 
+const awardXp = vi.fn().mockResolvedValue({ leveledUp: true, level: 2 })
+const awardCoins = vi.fn().mockResolvedValue(undefined)
+const incrementAttribute = vi.fn().mockResolvedValue(undefined)
+
 vi.mock('./useProfileStore.js', () => ({
-  useProfileStore: { getState: () => ({
-    awardXp: vi.fn().mockResolvedValue({ leveledUp: true, level: 2 }),
-    awardCoins: vi.fn().mockResolvedValue(undefined),
-    incrementAttribute: vi.fn().mockResolvedValue(undefined),
-  }) },
+  useProfileStore: { getState: () => ({ awardXp, awardCoins, incrementAttribute }) },
 }))
 
 import { writeRow } from '../services/dataService.js'
