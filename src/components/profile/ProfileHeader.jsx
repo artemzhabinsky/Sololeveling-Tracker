@@ -1,43 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
 import { useProfileStore } from '../../state/useProfileStore.js'
 import { xpRequiredForLevel } from '../../domain/xp.js'
 import { getRankTitle } from '../../domain/ranks.js'
 import GoblinAvatar from '../avatar/GoblinAvatar.jsx'
-import LevelUpModal from './LevelUpModal.jsx'
-import PenaltyScreen from './PenaltyScreen.jsx'
-import { playLevelUp } from '../../audio/sfx.js'
 
+/** Pure display of the profile. Level-up and penalty announcements belong to
+ *  SystemWatcher, which stays mounted on every route. */
 export default function ProfileHeader() {
   const level = useProfileStore((s) => s.level)
   const xp = useProfileStore((s) => s.xp)
   const coins = useProfileStore((s) => s.coins)
   const hp = useProfileStore((s) => s.hp)
-  const loaded = useProfileStore((s) => s.loaded)
-  const applyPenaltyReset = useProfileStore((s) => s.applyPenaltyReset)
-
-  const [showLevelUp, setShowLevelUp] = useState(false)
-  const previousLevel = useRef(level)
-  const wasLoaded = useRef(loaded)
-
-  useEffect(() => {
-    const justLoaded = loaded && !wasLoaded.current
-    wasLoaded.current = loaded
-
-    // Only a level gained while the app is running is a level-up. Before the
-    // store has hydrated — and on the hydrating render itself — the level jumps
-    // from the default 1 to whatever was saved, which is not something to
-    // celebrate. Sync the baseline and stay quiet.
-    if (!loaded || justLoaded) {
-      previousLevel.current = level
-      return
-    }
-
-    if (level > previousLevel.current) {
-      setShowLevelUp(true)
-      playLevelUp()
-    }
-    previousLevel.current = level
-  }, [level, loaded])
 
   const rank = getRankTitle(level)
   const required = xpRequiredForLevel(level)
@@ -94,9 +66,6 @@ export default function ProfileHeader() {
           </div>
         </div>
       </div>
-
-      <LevelUpModal open={showLevelUp} level={level} title={rank.title} onClose={() => setShowLevelUp(false)} />
-      <PenaltyScreen open={hp === 0} onAcknowledge={applyPenaltyReset} />
     </div>
   )
 }

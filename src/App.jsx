@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import TasksPage from './pages/TasksPage.jsx'
 import ShopPage from './pages/ShopPage.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
+import SystemWatcher from './components/profile/SystemWatcher.jsx'
 
 /* Nav glyphs: four 16px marks built from the same chamfered geometry as the
  * panels, so the rail reads as part of the System rather than a stock icon set. */
@@ -100,6 +101,10 @@ export default function App() {
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </main>
+
+      {/* Outside <Routes> so a level gained on any page is still announced, and
+          so its "already seen this level" baseline survives navigation. */}
+      <SystemWatcher />
     </div>
   )
 }
