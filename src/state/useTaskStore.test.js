@@ -13,7 +13,7 @@ vi.mock('./useProfileStore.js', () => ({
   useProfileStore: { getState: () => ({ awardXp, awardCoins, incrementAttribute }) },
 }))
 
-import { writeRow } from '../services/dataService.js'
+import { writeRow, readTable } from '../services/dataService.js'
 import { useProfileStore } from './useProfileStore.js'
 import { useTaskStore } from './useTaskStore.js'
 
@@ -50,5 +50,19 @@ describe('useTaskStore', () => {
     const id = useTaskStore.getState().tasks[0].id
     await useTaskStore.getState().deleteTask(id)
     expect(useTaskStore.getState().tasks).toHaveLength(0)
+  })
+
+  it('loadTasks filters out soft-deleted rows', async () => {
+    readTable.mockResolvedValueOnce([
+      { id: '1', title: 'Отжаться', status: 'todo' },
+      { id: '2', title: 'Присесть', status: 'todo', _deleted: true },
+      { id: '3', title: 'Пробежка', status: 'done' },
+    ])
+
+    await useTaskStore.getState().loadTasks()
+
+    const ids = useTaskStore.getState().tasks.map((t) => t.id)
+    expect(ids).toEqual(['1', '3'])
+    expect(useTaskStore.getState().loaded).toBe(true)
   })
 })
