@@ -2,7 +2,12 @@ import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core'
 import { useTaskStore } from '../../state/useTaskStore.js'
 import { columnsFromTasks } from '../../domain/kanban.js'
 
-const COLUMN_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }
+const COLUMN_LABELS = { todo: 'В очереди', in_progress: 'В работе', done: 'Готово' }
+const COLUMN_TONE = {
+  todo: 'border-t-edge-lit',
+  in_progress: 'border-t-gold',
+  done: 'border-t-jade',
+}
 
 function KanbanCard({ task }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id })
@@ -11,7 +16,14 @@ function KanbanCard({ task }) {
     : undefined
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className="cursor-grab border border-edge bg-raised px-3 py-2.5 text-sm text-bone
+                 transition-colors hover:border-jade active:cursor-grabbing"
+    >
       {task.title}
     </div>
   )
@@ -21,9 +33,17 @@ function KanbanColumn({ status, tasks }) {
   const { setNodeRef } = useDroppable({ id: status })
 
   return (
-    <div ref={setNodeRef} data-testid={`kanban-column-${status}`}>
-      <h3>{COLUMN_LABELS[status]}</h3>
-      {tasks.map((task) => <KanbanCard key={task.id} task={task} />)}
+    <div
+      ref={setNodeRef}
+      data-testid={`kanban-column-${status}`}
+      className={`flex min-h-40 min-w-56 flex-1 flex-col gap-2 border-t-2 bg-hollow/60 p-3 ${COLUMN_TONE[status]}`}
+    >
+      <h3>
+        {COLUMN_LABELS[status]} · {tasks.length}
+      </h3>
+      {tasks.map((task) => (
+        <KanbanCard key={task.id} task={task} />
+      ))}
     </div>
   )
 }
@@ -41,9 +61,11 @@ export default function TaskKanbanView() {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      {Object.entries(columns).map(([status, columnTasks]) => (
-        <KanbanColumn key={status} status={status} tasks={columnTasks} />
-      ))}
+      <div className="flex gap-3 overflow-x-auto">
+        {Object.entries(columns).map(([status, columnTasks]) => (
+          <KanbanColumn key={status} status={status} tasks={columnTasks} />
+        ))}
+      </div>
     </DndContext>
   )
 }

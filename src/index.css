@@ -1,1 +1,541 @@
+/* ---------------------------------------------------------------------------
+ * SOLOLEVELING TRACKER — "System Terminal" design system
+ *
+ * Direction: the app is the goblin's own budget knock-off of a hunter status
+ * window. Ground is bog-ink (green-cast, not the usual slate-blue), and there
+ * are exactly three signal colours, each with one job:
+ *   jade  = the System speaking (progress, active state, focus)
+ *   gold  = value the goblin can spend (coins, rewards, shop)
+ *   blood = the System threatening (HP, penalty, destructive)
+ *
+ * Typography is picked for Cyrillic first — the whole UI is Russian, which
+ * rules out most sci-fi display faces. Unbounded (wide, geometric, alien) for
+ * display, Golos Text (Russian-native grotesque) for reading, IBM Plex Mono
+ * for every number and system label.
+ *
+ * Signature: `.sys-window` — every panel is a System message. Chamfered at
+ * top-left / bottom-right (where the System cut it out) and clamped by jade
+ * corner brackets at the two square corners.
+ * ------------------------------------------------------------------------ */
+
+/* The three families are loaded via <link> in index.html — see the note there. */
 @import 'tailwindcss';
+
+@theme {
+  /* Ground — bog ink, green-cast */
+  --color-abyss: #060b09;
+  --color-hollow: #0a110e;
+  --color-surface: #0f1815;
+  --color-raised: #16211c;
+  --color-edge: #1f2e27;
+  --color-edge-lit: #2f463b;
+
+  /* Ink (all ≥ 4.5:1 on --color-surface) */
+  --color-bone: #e7efea;
+  --color-moss: #9bafa4;
+  --color-ash: #829a8e;
+
+  /* Signals */
+  --color-jade: #3ddc97;
+  --color-jade-deep: #0f3d2b;
+  --color-gold: #f5b841;
+  --color-gold-deep: #40300d;
+  --color-blood: #ff5468;
+  --color-blood-deep: #451017;
+
+  --font-display: 'Unbounded', 'Futura', 'Trebuchet MS', system-ui, sans-serif;
+  --font-sans: 'Golos Text', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --text-hud: 0.6875rem;
+  --text-hud--line-height: 1.25;
+
+  --radius-hud: 2px;
+
+  --ease-hud: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --animate-materialize: materialize 0.34s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+
+  @keyframes materialize {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* =========================================================================
+ * BASE — raw elements are styled directly so that every screen inherits the
+ * language, including components that carry no classes of their own.
+ * ====================================================================== */
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: rgba(61, 220, 151, 0.18);
+  }
+
+  button,
+  a,
+  label,
+  summary,
+  [role='tab'] {
+    touch-action: manipulation;
+  }
+
+  body {
+    background-color: var(--color-abyss);
+    background-image:
+      radial-gradient(120% 70% at 50% -20%, rgba(61, 220, 151, 0.09), transparent 62%),
+      radial-gradient(80% 50% at 100% 100%, rgba(245, 184, 65, 0.05), transparent 70%);
+    background-attachment: fixed;
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    min-height: 100dvh;
+  }
+
+  /* Scanline weave — static, 3% opacity: texture, never a contrast tax. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(231, 239, 234, 0.03) 0 1px,
+      transparent 1px 3px
+    );
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--color-bone);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 1.15rem + 2vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.25rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-family: var(--font-mono);
+    font-size: var(--text-hud);
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ash);
+  }
+
+  a {
+    color: var(--color-jade);
+    text-underline-offset: 3px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-jade);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-jade);
+    color: var(--color-abyss);
+  }
+
+  /* --- Controls ---------------------------------------------------------
+   * Chamfered on the leading corner only: the same cut as `.sys-window`,
+   * one size down, so buttons read as fragments of the same panel system. */
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.95rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-hud);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-bone);
+    background-color: var(--color-raised);
+    border: 1px solid var(--color-edge-lit);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    cursor: pointer;
+    transition:
+      color 180ms var(--ease-hud),
+      background-color 180ms var(--ease-hud),
+      border-color 180ms var(--ease-hud);
+  }
+
+  button:hover {
+    color: var(--color-jade);
+    border-color: var(--color-jade);
+    background-color: color-mix(in oklab, var(--color-jade) 12%, var(--color-raised));
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 2.75rem;
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    color: var(--color-bone);
+    background-color: var(--color-hollow);
+    border: 1px solid var(--color-edge);
+    border-radius: var(--radius-hud);
+    transition:
+      border-color 180ms var(--ease-hud),
+      background-color 180ms var(--ease-hud);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-ash);
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--color-edge-lit);
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    border-color: var(--color-jade);
+    background-color: var(--color-surface);
+  }
+
+  input[type='checkbox'] {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-height: 0;
+    flex: none;
+    accent-color: var(--color-jade);
+    cursor: pointer;
+  }
+
+  /* Give every checkbox row a full-size hit target. */
+  label:has(input[type='checkbox']) {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 2.75rem;
+    cursor: pointer;
+  }
+
+  label {
+    font-family: var(--font-mono);
+    font-size: var(--text-hud);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ash);
+  }
+
+  label:has(input[type='checkbox']) {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-bone);
+  }
+
+  ul {
+    list-style: none;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-hollow);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-edge-lit);
+    border: 2px solid var(--color-hollow);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-jade-deep);
+  }
+}
+
+/* =========================================================================
+ * COMPONENTS
+ * ====================================================================== */
+@layer components {
+  /* ---- Signature: the System window ---------------------------------- */
+  .sys-window {
+    position: relative;
+    isolation: isolate;
+    padding: 1.15rem 1.25rem 1.35rem;
+    background-image: linear-gradient(
+      158deg,
+      var(--color-raised) 0%,
+      var(--color-surface) 55%,
+      var(--color-hollow) 100%
+    );
+    border: 1px solid var(--color-edge);
+    clip-path: polygon(
+      18px 0,
+      100% 0,
+      100% calc(100% - 18px),
+      calc(100% - 18px) 100%,
+      0 100%,
+      0 18px
+    );
+  }
+
+  /* Brackets clamp the two corners the System did not cut. */
+  .sys-window::before,
+  .sys-window::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-style: solid;
+    border-color: var(--color-jade);
+    border-width: 0;
+    opacity: 0.9;
+  }
+
+  .sys-window::before {
+    top: 6px;
+    right: 6px;
+    border-top-width: 1.5px;
+    border-right-width: 1.5px;
+  }
+
+  .sys-window::after {
+    bottom: 6px;
+    left: 6px;
+    border-bottom-width: 1.5px;
+    border-left-width: 1.5px;
+  }
+
+  .sys-window--gold::before,
+  .sys-window--gold::after {
+    border-color: var(--color-gold);
+  }
+
+  .sys-window--alert::before,
+  .sys-window--alert::after {
+    border-color: var(--color-blood);
+  }
+
+  /* ---- Eyebrow / system label ---------------------------------------- */
+  .sys-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-hud);
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-ash);
+  }
+
+  .sys-eyebrow::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    flex: none;
+    background: var(--color-jade);
+    transform: rotate(45deg);
+  }
+
+  .sys-value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---- Buttons -------------------------------------------------------- */
+  .sys-btn-primary {
+    color: var(--color-abyss);
+    background-color: var(--color-jade);
+    border-color: var(--color-jade);
+    font-weight: 600;
+  }
+
+  .sys-btn-primary:hover {
+    color: var(--color-abyss);
+    background-color: color-mix(in oklab, var(--color-jade) 80%, white);
+    border-color: color-mix(in oklab, var(--color-jade) 80%, white);
+  }
+
+  .sys-btn-danger:hover {
+    color: var(--color-blood);
+    border-color: var(--color-blood);
+    background-color: var(--color-blood-deep);
+  }
+
+  .sys-btn-gold {
+    color: var(--color-gold);
+    border-color: color-mix(in oklab, var(--color-gold) 45%, var(--color-edge));
+  }
+
+  .sys-btn-gold:hover {
+    color: var(--color-abyss);
+    background-color: var(--color-gold);
+    border-color: var(--color-gold);
+  }
+
+  .sys-btn-quiet {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--color-ash);
+  }
+
+  /* ---- Navigation rail ------------------------------------------------ */
+  .sys-nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    flex: 1 1 0;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.25rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-hud);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-moss);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition:
+      color 180ms var(--ease-hud),
+      background-color 180ms var(--ease-hud);
+  }
+
+  .sys-nav-link:hover {
+    color: var(--color-bone);
+    background-color: var(--color-surface);
+  }
+
+  .sys-nav-link[aria-current='page'] {
+    color: var(--color-jade);
+    background-image: linear-gradient(90deg, rgba(61, 220, 151, 0.14), transparent 70%);
+  }
+
+  @media (width >= 64rem) {
+    .sys-nav-link {
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 0.7rem;
+      flex: none;
+      min-height: 2.9rem;
+      padding: 0.5rem 1.1rem;
+    }
+
+    .sys-nav-link[aria-current='page'] {
+      border-left-color: var(--color-jade);
+    }
+  }
+
+  /* ---- Tabs ----------------------------------------------------------- */
+  .sys-tab {
+    flex: 1 1 0;
+    min-height: 2.75rem;
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--color-moss);
+    clip-path: none;
+  }
+
+  .sys-tab:hover {
+    background-color: var(--color-raised);
+    color: var(--color-bone);
+    border-color: transparent;
+  }
+
+  .sys-tab[aria-selected='true'] {
+    color: var(--color-abyss);
+    background-color: var(--color-jade);
+    border-color: var(--color-jade);
+    font-weight: 600;
+  }
+
+  /* ---- Meter (XP) ----------------------------------------------------- */
+  .sys-meter {
+    position: relative;
+    height: 0.6rem;
+    overflow: hidden;
+    background-color: var(--color-hollow);
+    border: 1px solid var(--color-edge);
+  }
+
+  /* Driven by transform, not width, so the fill animates on the compositor.
+     Callers set `--sys-fill` to a 0–1 ratio. */
+  .sys-meter__fill {
+    height: 100%;
+    width: 100%;
+    transform-origin: left center;
+    transform: scaleX(var(--sys-fill, 0));
+    background-image: linear-gradient(90deg, var(--color-jade-deep), var(--color-jade));
+    transition: transform 420ms var(--ease-hud);
+  }
+
+  /* ---- Entrance ------------------------------------------------------- */
+  .sys-stagger > * {
+    animation: var(--animate-materialize);
+  }
+  .sys-stagger > *:nth-child(2) {
+    animation-delay: 70ms;
+  }
+  .sys-stagger > *:nth-child(3) {
+    animation-delay: 140ms;
+  }
+  .sys-stagger > *:nth-child(4) {
+    animation-delay: 210ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
