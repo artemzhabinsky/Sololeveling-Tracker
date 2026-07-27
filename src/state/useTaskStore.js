@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { format } from 'date-fns'
 import { writeRow, readTable } from '../services/dataService.js'
 import { getReward } from '../domain/rewards.js'
 import { getAttrForCategory } from '../domain/categories.js'
@@ -6,7 +7,7 @@ import { mergeAnalyticsLog } from '../domain/analyticsLog.js'
 import { useProfileStore } from './useProfileStore.js'
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 export const useTaskStore = create((set, get) => ({

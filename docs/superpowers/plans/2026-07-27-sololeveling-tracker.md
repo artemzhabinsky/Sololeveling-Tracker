@@ -1783,6 +1783,7 @@ Expected: FAIL (module not found).
 
 ```js
 import { create } from 'zustand'
+import { format } from 'date-fns'
 import { writeRow, readTable } from '../services/dataService.js'
 import { getReward } from '../domain/rewards.js'
 import { getAttrForCategory } from '../domain/categories.js'
@@ -1790,7 +1791,7 @@ import { mergeAnalyticsLog } from '../domain/analyticsLog.js'
 import { useProfileStore } from './useProfileStore.js'
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 export const useTaskStore = create((set, get) => ({
@@ -2479,6 +2480,7 @@ git commit -m "feat: add Kanban board with dnd-kit"
 
 ```js
 import { describe, it, expect } from 'vitest'
+import { format } from 'date-fns'
 import { buildMonthGrid, tasksByDate } from './calendar.js'
 
 describe('buildMonthGrid', () => {
@@ -2486,8 +2488,10 @@ describe('buildMonthGrid', () => {
     const grid = buildMonthGrid(2026, 1) // month is 0-indexed: 1 = February
     // Feb 2026 starts on a Sunday and has 28 days -> exactly 4 weeks, no padding needed
     expect(grid).toHaveLength(4)
-    expect(grid[0][0].toISOString().slice(0, 10)).toBe('2026-02-01')
-    expect(grid[3][6].toISOString().slice(0, 10)).toBe('2026-02-28')
+    // date-fns format() reads local fields, unlike toISOString() which converts
+    // to UTC first and can shift the date in timezones ahead of UTC.
+    expect(format(grid[0][0], 'yyyy-MM-dd')).toBe('2026-02-01')
+    expect(format(grid[3][6], 'yyyy-MM-dd')).toBe('2026-02-28')
   })
 })
 
@@ -3334,6 +3338,7 @@ Expected: FAIL (module not found).
 - [ ] **Step 3: Implement**
 
 ```js
+import { format } from 'date-fns'
 import { useProfileStore } from '../state/useProfileStore.js'
 import { useTaskStore } from '../state/useTaskStore.js'
 import { useDailyQuestStore } from '../state/useDailyQuestStore.js'
@@ -3342,7 +3347,7 @@ import { computeHpPenalty } from '../domain/hpPenalty.js'
 import { flushPendingSync } from './dataService.js'
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 export async function bootstrap(today = todayISO()) {
