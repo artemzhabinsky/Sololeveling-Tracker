@@ -82,8 +82,7 @@
   button,
   a,
   label,
-  summary,
-  [role='tab'] {
+  summary {
     touch-action: manipulation;
   }
 
@@ -487,7 +486,7 @@
     border-color: transparent;
   }
 
-  .sys-tab[aria-selected='true'] {
+  .sys-tab[aria-pressed='true'] {
     color: var(--color-abyss);
     background-color: var(--color-jade);
     border-color: var(--color-jade);

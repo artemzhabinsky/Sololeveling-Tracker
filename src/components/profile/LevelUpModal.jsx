@@ -1,6 +1,32 @@
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+
 export default function LevelUpModal({ open, level, title, onClose }) {
+  const confirmRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const previouslyFocused = document.activeElement
+    confirmRef.current?.focus()
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus?.()
+    }
+  }, [open, onClose])
+
   if (!open) return null
-  return (
+
+  // Portalled to <body>: ProfileHeader sits inside a `.sys-window`, whose
+  // clip-path would otherwise crop this fixed overlay to the panel's chamfered
+  // outline, and whose `isolation: isolate` would trap it below sibling panels.
+  return createPortal(
     <div className="fixed inset-0 z-80 flex items-center justify-center overscroll-contain bg-abyss/85 p-4 backdrop-blur-sm">
       <div
         role="dialog"
@@ -12,10 +38,16 @@ export default function LevelUpModal({ open, level, title, onClose }) {
           Новый уровень: {level}
         </p>
         <p className="mt-3 text-moss">{title}</p>
-        <button type="button" onClick={onClose} className="sys-btn-primary mt-6 w-full">
+        <button
+          ref={confirmRef}
+          type="button"
+          onClick={onClose}
+          className="sys-btn-primary mt-6 w-full"
+        >
           Продолжить
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

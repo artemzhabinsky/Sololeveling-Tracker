@@ -28,8 +28,11 @@ export default function TasksPage() {
         </p>
       </header>
 
+      {/* Plain toggle buttons rather than role="tab": the full tab pattern owes
+          AT users roving tabIndex plus Arrow/Home/End handling, and announcing
+          a role we do not implement is worse than not claiming it. */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Режим отображения задач"
         className="flex gap-1 border border-edge bg-hollow p-1"
       >
@@ -37,10 +40,8 @@ export default function TasksPage() {
           <button
             key={t.key}
             type="button"
-            role="tab"
             id={`tab-${t.key}`}
-            aria-selected={tab === t.key}
-            aria-controls={`panel-${t.key}`}
+            aria-pressed={tab === t.key}
             onClick={() => setSearchParams({ view: t.key }, { replace: true })}
             className="sys-tab"
           >
@@ -49,13 +50,10 @@ export default function TasksPage() {
         ))}
       </div>
 
-      <div
-        role="tabpanel"
-        id={`panel-${tab}`}
-        aria-labelledby={`tab-${tab}`}
-        className="sys-window overflow-x-auto"
-      >
-        <h2 className="sr-only">{activeLabel}</h2>
+      <section aria-labelledby="tasks-view-heading" className="sys-window overflow-x-auto">
+        <h2 id="tasks-view-heading" className="sr-only">
+          {activeLabel}
+        </h2>
         {tab === 'list' && <TaskListView />}
         {tab === 'kanban' && <TaskKanbanView />}
         {/* buildMonthGrid feeds `month` straight into new Date(y, m, 1), so it
@@ -63,7 +61,7 @@ export default function TasksPage() {
         {tab === 'calendar' && (
           <TaskCalendarView year={now.getFullYear()} month={now.getMonth()} />
         )}
-      </div>
+      </section>
     </section>
   )
 }

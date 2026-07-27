@@ -17,4 +17,23 @@ describe('PenaltyScreen', () => {
     await userEvent.click(screen.getByRole('button'))
     expect(onAcknowledge).toHaveBeenCalled()
   })
+
+  it('portals out of its parent subtree so an ancestor cannot clip it', () => {
+    const { container } = render(<PenaltyScreen open={true} onAcknowledge={() => {}} />)
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('moves focus to the acknowledge button on open', () => {
+    render(<PenaltyScreen open={true} onAcknowledge={() => {}} />)
+    expect(screen.getByRole('button')).toHaveFocus()
+  })
+
+  it('ignores Escape — the reset must be acknowledged deliberately', async () => {
+    const onAcknowledge = vi.fn()
+    render(<PenaltyScreen open={true} onAcknowledge={onAcknowledge} />)
+    await userEvent.keyboard('{Escape}')
+    expect(onAcknowledge).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
 })

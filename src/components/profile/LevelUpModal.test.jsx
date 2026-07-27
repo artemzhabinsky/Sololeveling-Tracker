@@ -21,4 +21,39 @@ describe('LevelUpModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /продолжить|закрыть/i }))
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('portals out of its parent subtree so an ancestor cannot clip it', () => {
+    const { container } = render(
+      <LevelUpModal open={true} level={5} title="Собиратель Мелких Скидок" onClose={() => {}} />,
+    )
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('moves focus to the confirm button on open', () => {
+    render(<LevelUpModal open={true} level={5} title="Собиратель Мелких Скидок" onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: /продолжить/i })).toHaveFocus()
+  })
+
+  it('closes on Escape', async () => {
+    const onClose = vi.fn()
+    render(<LevelUpModal open={true} level={5} title="Собиратель Мелких Скидок" onClose={onClose} />)
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('restores focus to the element that was focused before it opened', () => {
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+
+    const { unmount } = render(
+      <LevelUpModal open={true} level={5} title="Собиратель Мелких Скидок" onClose={() => {}} />,
+    )
+    expect(trigger).not.toHaveFocus()
+
+    unmount()
+    expect(trigger).toHaveFocus()
+    trigger.remove()
+  })
 })

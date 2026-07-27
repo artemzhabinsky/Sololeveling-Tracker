@@ -12,18 +12,32 @@ export default function ProfileHeader() {
   const xp = useProfileStore((s) => s.xp)
   const coins = useProfileStore((s) => s.coins)
   const hp = useProfileStore((s) => s.hp)
+  const loaded = useProfileStore((s) => s.loaded)
   const applyPenaltyReset = useProfileStore((s) => s.applyPenaltyReset)
 
   const [showLevelUp, setShowLevelUp] = useState(false)
   const previousLevel = useRef(level)
+  const wasLoaded = useRef(loaded)
 
   useEffect(() => {
+    const justLoaded = loaded && !wasLoaded.current
+    wasLoaded.current = loaded
+
+    // Only a level gained while the app is running is a level-up. Before the
+    // store has hydrated — and on the hydrating render itself — the level jumps
+    // from the default 1 to whatever was saved, which is not something to
+    // celebrate. Sync the baseline and stay quiet.
+    if (!loaded || justLoaded) {
+      previousLevel.current = level
+      return
+    }
+
     if (level > previousLevel.current) {
       setShowLevelUp(true)
       playLevelUp()
     }
     previousLevel.current = level
-  }, [level])
+  }, [level, loaded])
 
   const rank = getRankTitle(level)
   const required = xpRequiredForLevel(level)
