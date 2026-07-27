@@ -176,3 +176,7 @@ and unused, status flips to `expired` (kept, not deleted). A "use" action sets
 - Exact visual design (palette/typography/layout) — produced fresh via the
   design skills, not carried over from the earlier discarded prototype.
 - Vercel project connection / credentials.
+- Mobile adaptation — desktop-first build initially; a dedicated
+  responsive/mobile pass (touch targets, Kanban/Calendar layout on small
+  screens, etc.) is planned as a follow-up phase after the desktop version is
+  working, not part of the initial implementation plan.
