@@ -1275,9 +1275,14 @@ export const useProfileStore = create((set, get) => ({
         attr_str: row.attr_str, attr_int: row.attr_int, attr_vit: row.attr_vit,
         attr_gold: row.attr_gold, attr_disc: row.attr_disc,
         lastHpCheckDate: row.last_hp_check_date,
-        loaded: true,
       })
     }
+    // Loaded means "we asked and got an answer" (even an empty one), not
+    // "a row existed" -- otherwise a genuinely-empty table (no Supabase row
+    // and no LocalStorage cache yet, e.g. before the schema seed runs)
+    // leaves `loaded` false forever and permanently suppresses SystemWatcher's
+    // level-up celebration for that session.
+    set({ loaded: true })
   },
 
   async awardXp(amount) {
