@@ -1799,7 +1799,7 @@ export const useTaskStore = create((set, get) => ({
 
   async loadTasks() {
     const tasks = await readTable('tasks')
-    set({ tasks, loaded: true })
+    set({ tasks: tasks.filter((t) => !t._deleted), loaded: true })
   },
 
   async createTask({ title, category, rank, dueDate }) {
