@@ -1007,7 +1007,7 @@ git commit -m "feat: add LocalStorage cache and offline sync queue"
 
 **Interfaces:**
 - Consumes: `supabase` from `src/lib/supabaseClient.js`; `getItem`/`setItem` from `localStore.js`; `enqueue`/`replayQueue` from `syncQueue.js`.
-- Produces: `writeRow(table: string, payload: object, { match }: {match?: object}): Promise<{ok:boolean, offline:boolean}>`, `readTable(table: string): Promise<Array<object>>`, `flushPendingSync(): Promise<{succeeded:number, remaining:number}>`.
+- Produces: `writeRow(table: string, payload: object): Promise<{ok:boolean, offline:boolean}>`, `readTable(table: string): Promise<Array<object>>`, `flushPendingSync(): Promise<{succeeded:number, remaining:number}>`.
 
 - [ ] **Step 1: Write the failing tests**
 
