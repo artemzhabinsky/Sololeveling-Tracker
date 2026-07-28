@@ -32,9 +32,14 @@ export const useProfileStore = create((set, get) => ({
         attr_str: row.attr_str, attr_int: row.attr_int, attr_vit: row.attr_vit,
         attr_gold: row.attr_gold, attr_disc: row.attr_disc,
         lastHpCheckDate: row.last_hp_check_date,
-        loaded: true,
       })
     }
+
+    // `loaded` means the boot read finished, not that a row came back. A
+    // brand-new profile has nothing to hydrate from and keeps its defaults, but
+    // SystemWatcher gates level-up announcements on this flag — leaving it false
+    // would silently mute every celebration for the rest of the session.
+    set({ loaded: true })
   },
 
   async awardXp(amount) {

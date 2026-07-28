@@ -9,7 +9,7 @@ vi.mock('../services/dataService.js', () => ({
   }]),
 }))
 
-import { writeRow } from '../services/dataService.js'
+import { writeRow, readTable } from '../services/dataService.js'
 import { useProfileStore } from './useProfileStore.js'
 
 describe('useProfileStore', () => {
@@ -21,6 +21,25 @@ describe('useProfileStore', () => {
 
   it('loadProfile populates state from readTable', () => {
     expect(useProfileStore.getState().level).toBe(1)
+  })
+
+  // A brand-new user has no Supabase row and no LocalStorage cache. `loaded`
+  // has to flip anyway: SystemWatcher gates level-up announcements on it, and
+  // loadProfile only runs once at boot, so leaving it false would mute every
+  // celebration for the whole session.
+  it('loadProfile marks itself loaded even when the table comes back empty', async () => {
+    useProfileStore.setState(useProfileStore.getInitialState())
+    readTable.mockResolvedValueOnce([])
+
+    await useProfileStore.getState().loadProfile()
+
+    const state = useProfileStore.getState()
+    expect(state.loaded).toBe(true)
+    expect(state).toMatchObject({
+      level: 1, xp: 0, coins: 0, hp: 3,
+      attr_str: 0, attr_int: 0, attr_vit: 0, attr_gold: 0, attr_disc: 0,
+      lastHpCheckDate: null,
+    })
   })
 
   it('awardXp adds xp, persists, and reports level-up', async () => {
