@@ -43,6 +43,23 @@ export const useShopStore = create((set, get) => ({
     await writeRow('user_inventory', updated)
   },
 
+  // The SYSTEM PENALTY reset wipes everything the player earned, inventory
+  // included. Items are burned to `expired` rather than deleted: dataService
+  // only speaks upsert, and the shop already treats `expired` as the terminal
+  // "kept but unspendable" state, so this reuses that instead of inventing a
+  // delete path.
+  async clearInventory() {
+    const burned = get().inventory
+      .filter((i) => i.status === 'active')
+      .map((i) => ({ ...i, status: 'expired' }))
+    if (burned.length === 0) return
+
+    set((s) => ({
+      inventory: s.inventory.map((i) => burned.find((b) => b.id === i.id) ?? i),
+    }))
+    await Promise.all(burned.map((item) => writeRow('user_inventory', item)))
+  },
+
   refreshExpiry(now = new Date()) {
     set((s) => ({
       inventory: s.inventory.map((item) => {

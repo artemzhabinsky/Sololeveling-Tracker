@@ -71,6 +71,31 @@ describe('useShopStore', () => {
     expect(b.status).toBe('used')
   })
 
+  it('clearInventory burns every active item and persists each one', async () => {
+    useShopStore.setState({
+      inventory: [
+        { id: 'a', status: 'active', used_at: null },
+        { id: 'b', status: 'used', used_at: '2026-07-27T13:00:00Z' },
+        { id: 'c', status: 'active', used_at: null },
+      ],
+    })
+
+    await useShopStore.getState().clearInventory()
+
+    expect(useShopStore.getState().inventory.map((i) => i.status)).toEqual(['expired', 'used', 'expired'])
+    expect(writeRow).toHaveBeenCalledTimes(2)
+    expect(writeRow).toHaveBeenCalledWith('user_inventory', expect.objectContaining({ id: 'a', status: 'expired' }))
+    expect(writeRow).toHaveBeenCalledWith('user_inventory', expect.objectContaining({ id: 'c', status: 'expired' }))
+  })
+
+  it('clearInventory writes nothing when there is nothing active', async () => {
+    useShopStore.setState({ inventory: [{ id: 'b', status: 'used' }] })
+
+    await useShopStore.getState().clearInventory()
+
+    expect(writeRow).not.toHaveBeenCalled()
+  })
+
   it('useItem sets used_at and status', async () => {
     spendCoins.mockResolvedValue(true)
     await useShopStore.getState().createReward({ title: 'Кино', cost: 200 })

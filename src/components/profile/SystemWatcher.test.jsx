@@ -1,13 +1,21 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const applyPenaltyReset = vi.fn().mockResolvedValue(undefined)
+const clearInventory = vi.fn().mockResolvedValue(undefined)
 
 const baseProfile = {
   level: 1, hp: 3, loaded: true,
-  applyPenaltyReset: vi.fn(),
+  applyPenaltyReset,
 }
 
 vi.mock('../../state/useProfileStore.js', () => ({
   useProfileStore: (selector) => selector(mockState),
+}))
+
+vi.mock('../../state/useShopStore.js', () => ({
+  useShopStore: (selector) => selector({ clearInventory }),
 }))
 
 vi.mock('../../audio/sfx.js', () => ({ playLevelUp: vi.fn() }))
@@ -94,6 +102,19 @@ describe('SystemWatcher', () => {
     mockState = { ...baseProfile, hp: 0 }
     render(<SystemWatcher />)
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  // The spec's reset is "full": profile *and* user_inventory. The profile store
+  // can't reach the shop store without a circular import, so the watcher is
+  // what guarantees both halves run.
+  it('acknowledging the penalty resets the profile and clears the inventory', async () => {
+    mockState = { ...baseProfile, hp: 0 }
+    render(<SystemWatcher />)
+
+    await userEvent.click(screen.getByRole('button', { name: /начать заново/i }))
+
+    expect(applyPenaltyReset).toHaveBeenCalledTimes(1)
+    expect(clearInventory).toHaveBeenCalledTimes(1)
   })
 
   it('renders no layout of its own — both overlays portal to the body', () => {

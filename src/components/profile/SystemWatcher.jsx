@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useProfileStore } from '../../state/useProfileStore.js'
+import { useShopStore } from '../../state/useShopStore.js'
 import { getRankTitle } from '../../domain/ranks.js'
 import LevelUpModal from './LevelUpModal.jsx'
 import PenaltyScreen from './PenaltyScreen.jsx'
@@ -23,6 +24,7 @@ export default function SystemWatcher() {
   const hp = useProfileStore((s) => s.hp)
   const loaded = useProfileStore((s) => s.loaded)
   const applyPenaltyReset = useProfileStore((s) => s.applyPenaltyReset)
+  const clearInventory = useShopStore((s) => s.clearInventory)
 
   const [showLevelUp, setShowLevelUp] = useState(false)
   const previousLevel = useRef(level)
@@ -48,6 +50,15 @@ export default function SystemWatcher() {
     previousLevel.current = level
   }, [level, loaded])
 
+  // The spec's reset covers the inventory too, but the profile store can't call
+  // into the shop store — the shop already imports the profile store for
+  // spendCoins, and closing that loop would be a circular import. The caller
+  // owns the sequencing instead.
+  async function handlePenaltyAcknowledge() {
+    await applyPenaltyReset()
+    await clearInventory()
+  }
+
   return (
     <>
       <LevelUpModal
@@ -56,7 +67,7 @@ export default function SystemWatcher() {
         title={getRankTitle(level).title}
         onClose={() => setShowLevelUp(false)}
       />
-      <PenaltyScreen open={hp === 0} onAcknowledge={applyPenaltyReset} />
+      <PenaltyScreen open={hp === 0} onAcknowledge={handlePenaltyAcknowledge} />
     </>
   )
 }
