@@ -51,11 +51,22 @@ function KanbanColumn({ status, tasks }) {
 export default function TaskKanbanView() {
   const tasks = useTaskStore((s) => s.tasks)
   const updateStatus = useTaskStore((s) => s.updateStatus)
+  const completeTask = useTaskStore((s) => s.completeTask)
   const columns = columnsFromTasks(tasks)
 
   function handleDragEnd(event) {
     const { active, over } = event
     if (!over) return
+
+    // Dropping into "Готово" has to be a real completion, not a status flip:
+    // the list view hides the "Выполнить" button once a task is done, so an
+    // unrewarded card dragged here would strand its XP/coins permanently.
+    const task = tasks.find((t) => t.id === active.id)
+    if (over.id === 'done' && task?.status !== 'done') {
+      completeTask(active.id)
+      return
+    }
+
     updateStatus(active.id, over.id)
   }
 

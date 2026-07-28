@@ -5,6 +5,7 @@ import { getReward } from '../domain/rewards.js'
 import { getAttrForCategory } from '../domain/categories.js'
 import { mergeAnalyticsLog } from '../domain/analyticsLog.js'
 import { useProfileStore } from './useProfileStore.js'
+import { playTaskComplete } from '../audio/sfx.js'
 
 function todayISO() {
   return format(new Date(), 'yyyy-MM-dd')
@@ -39,9 +40,17 @@ export const useTaskStore = create((set, get) => ({
 
   async completeTask(id) {
     const task = get().tasks.find((t) => t.id === id)
+    // Completing an already-done task would award its XP/coins/attributes a
+    // second time. The Kanban board can drop a card onto the column it already
+    // sits in, so this is reachable, not just defensive.
+    if (!task || task.status === 'done') {
+      return { leveledUp: false, level: useProfileStore.getState().level }
+    }
+
     const completedAt = new Date().toISOString()
     const updated = { ...task, status: 'done', completed_at: completedAt }
     set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? updated : t)) }))
+    playTaskComplete()
     await writeRow('tasks', updated)
 
     const profile = useProfileStore.getState()

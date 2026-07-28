@@ -10,9 +10,12 @@ const awardCoins = vi.fn().mockResolvedValue(undefined)
 const incrementAttribute = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('./useProfileStore.js', () => ({
-  useProfileStore: { getState: () => ({ awardXp, awardCoins, incrementAttribute }) },
+  useProfileStore: { getState: () => ({ level: 3, awardXp, awardCoins, incrementAttribute }) },
 }))
 
+vi.mock('../audio/sfx.js', () => ({ playTaskComplete: vi.fn() }))
+
+import { playTaskComplete } from '../audio/sfx.js'
 import { writeRow, readTable } from '../services/dataService.js'
 import { useProfileStore } from './useProfileStore.js'
 import { useTaskStore } from './useTaskStore.js'
@@ -48,6 +51,33 @@ describe('useTaskStore', () => {
       expect.objectContaining({ tasks_completed: 1 }),
       { onConflict: 'log_date' },
     )
+  })
+
+  it('completeTask plays the completion sound', async () => {
+    await useTaskStore.getState().createTask({ title: 'Отжаться', category: 'physical', rank: 'D', dueDate: null })
+    const id = useTaskStore.getState().tasks[0].id
+
+    await useTaskStore.getState().completeTask(id)
+
+    expect(playTaskComplete).toHaveBeenCalledTimes(1)
+  })
+
+  // The Kanban board can drop a card onto the column it already occupies, so a
+  // second completion is reachable from the UI, not merely defensive.
+  it('completeTask is a no-op on an already-done task', async () => {
+    await useTaskStore.getState().createTask({ title: 'Отжаться', category: 'physical', rank: 'D', dueDate: null })
+    const id = useTaskStore.getState().tasks[0].id
+    await useTaskStore.getState().completeTask(id)
+    vi.clearAllMocks()
+
+    const result = await useTaskStore.getState().completeTask(id)
+
+    expect(result).toEqual({ leveledUp: false, level: 3 })
+    expect(awardXp).not.toHaveBeenCalled()
+    expect(awardCoins).not.toHaveBeenCalled()
+    expect(incrementAttribute).not.toHaveBeenCalled()
+    expect(playTaskComplete).not.toHaveBeenCalled()
+    expect(writeRow).not.toHaveBeenCalled()
   })
 
   it('deleteTask soft-deletes with a deleted_at stamp on the full row', async () => {
