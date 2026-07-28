@@ -32,15 +32,23 @@ export async function bootstrap(today = todayISO()) {
 
   await Promise.race([hydrated, timeout])
 
+  // If the timeout won the race, loadProfile() hasn't set() yet and the
+  // store is still sitting on its un-hydrated initialState (lastHpCheckDate:
+  // null) -- computeHpPenalty()'s date parsing can't handle that, and there
+  // is nothing meaningful to check a penalty against anyway. Skip it this
+  // boot; the real data (and a correct check) arrives whenever loadProfile()
+  // actually resolves and flips `loaded`.
   const profile = useProfileStore.getState()
-  const dailyQuests = useDailyQuestStore.getState()
-  const penaltyResult = computeHpPenalty({
-    currentHp: profile.hp,
-    lastCheckDate: profile.lastHpCheckDate,
-    today,
-    hasCompletionOnDate: dailyQuests.hasCompletionOnDate,
-  })
-  await profile.setHpAndCheckDate({ hp: penaltyResult.hp, lastHpCheckDate: penaltyResult.lastCheckDate })
+  if (profile.loaded) {
+    const dailyQuests = useDailyQuestStore.getState()
+    const penaltyResult = computeHpPenalty({
+      currentHp: profile.hp,
+      lastCheckDate: profile.lastHpCheckDate,
+      today,
+      hasCompletionOnDate: dailyQuests.hasCompletionOnDate,
+    })
+    await profile.setHpAndCheckDate({ hp: penaltyResult.hp, lastHpCheckDate: penaltyResult.lastCheckDate })
+  }
 
   window.addEventListener('online', () => flushPendingSync())
 }
