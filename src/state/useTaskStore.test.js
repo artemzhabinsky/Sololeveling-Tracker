@@ -80,6 +80,24 @@ describe('useTaskStore', () => {
     expect(writeRow).not.toHaveBeenCalled()
   })
 
+  it('completeTask stays a no-op even after the task is dragged back out of done', async () => {
+    await useTaskStore.getState().createTask({ title: 'Отжаться', category: 'physical', rank: 'D', dueDate: null })
+    const id = useTaskStore.getState().tasks[0].id
+    await useTaskStore.getState().completeTask(id)
+    // Simulate dragging the Kanban card back to a non-done column: this flips
+    // status but must not clear completed_at.
+    await useTaskStore.getState().updateStatus(id, 'todo')
+    vi.clearAllMocks()
+
+    const result = await useTaskStore.getState().completeTask(id)
+
+    expect(result).toEqual({ leveledUp: false, level: 3 })
+    expect(awardXp).not.toHaveBeenCalled()
+    expect(awardCoins).not.toHaveBeenCalled()
+    expect(incrementAttribute).not.toHaveBeenCalled()
+    expect(playTaskComplete).not.toHaveBeenCalled()
+  })
+
   it('deleteTask soft-deletes with a deleted_at stamp on the full row', async () => {
     await useTaskStore.getState().createTask({ title: 'Отжаться', category: 'physical', rank: 'D', dueDate: null })
     const id = useTaskStore.getState().tasks[0].id

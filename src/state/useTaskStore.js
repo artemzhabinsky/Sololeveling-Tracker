@@ -40,10 +40,11 @@ export const useTaskStore = create((set, get) => ({
 
   async completeTask(id) {
     const task = get().tasks.find((t) => t.id === id)
-    // Completing an already-done task would award its XP/coins/attributes a
-    // second time. The Kanban board can drop a card onto the column it already
-    // sits in, so this is reachable, not just defensive.
-    if (!task || task.status === 'done') {
+    // Guard on completed_at, not status: updateStatus() can move a task back
+    // out of "done" (e.g. dragging it out of the Kanban column) without
+    // clearing completed_at, so checking status alone would let a card farm
+    // its XP/coins/attribute award indefinitely by cycling done -> todo -> done.
+    if (!task || task.completed_at) {
       return { leveledUp: false, level: useProfileStore.getState().level }
     }
 
