@@ -42,6 +42,20 @@ describe('useProfileStore', () => {
     })
   })
 
+  // An award racing ahead of hydration used to upsert the defaults over the
+  // real server row, and last_hp_check_date: null would have been rejected by
+  // the NOT NULL constraint — a queued write that could never succeed.
+  it('does not persist anything while the store is still un-hydrated', async () => {
+    useProfileStore.setState(useProfileStore.getInitialState())
+    vi.clearAllMocks()
+
+    await useProfileStore.getState().awardXp(150)
+    await useProfileStore.getState().awardCoins(10)
+    await useProfileStore.getState().incrementAttribute('attr_str', 5)
+
+    expect(writeRow).not.toHaveBeenCalled()
+  })
+
   it('awardXp adds xp, persists, and reports level-up', async () => {
     const result = await useProfileStore.getState().awardXp(150)
     expect(result).toEqual({ leveledUp: true, level: 2 })

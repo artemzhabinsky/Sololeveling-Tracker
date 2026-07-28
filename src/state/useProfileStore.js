@@ -11,6 +11,14 @@ const initialState = {
 }
 
 function persist(state) {
+  // Until loadProfile() resolves, the store is still sitting on initialState.
+  // Persisting that would upsert level 1 / 0 xp / 0 coins over whatever the
+  // server actually holds — silent data loss — and last_hp_check_date: null
+  // violates that column's NOT NULL constraint, queueing a write that can never
+  // drain. The local set() still stands; loadProfile() is authoritative and
+  // overwrites it moments later.
+  if (!state.loaded) return Promise.resolve({ ok: false, skipped: true })
+
   return writeRow('profiles', {
     id: SUPABASE_PROFILE_ID,
     level: state.level, xp: state.xp, coins: state.coins, hp: state.hp,
