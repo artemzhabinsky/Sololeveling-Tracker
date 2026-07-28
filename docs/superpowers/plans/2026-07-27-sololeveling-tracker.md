@@ -3276,13 +3276,17 @@ git commit -m "feat: wire app routing and apply visual design"
 
 ### Task 26: Boot sequence (initial loads, HP check, offline sync)
 
+**Note — reconciled with Task 25's actual output.** Task 25 (app shell/design pass) already had to add store hydration directly in `main.jsx` — inline, not extracted — because the app doesn't render anything real without it, and because `ProfileHeader`'s (later `SystemWatcher`'s) level-up detection needed hydration to happen before first render to avoid a spurious celebration on cold start. That inline version handles the 4 store loads, `flushPendingSync()`, and a 2.5s hydration timeout race (so a slow/unreachable backend doesn't hang the UI — `readTable` already falls back to the LocalStorage mirror). It does NOT include the HP penalty check or the `online`-event auto-resync listener, which are still this task's job.
+
+This task now **extracts** that inline logic into `src/services/bootstrap.js` (restoring testability — `main.jsx` itself can't be unit tested, but a `bootstrap()` function can) and **adds** the two missing pieces on top, preserving the existing hydration-timeout behavior rather than removing it.
+
 **Files:**
 - Create: `src/services/bootstrap.js`, `src/services/bootstrap.test.js`
-- Modify: `src/main.jsx` (call `bootstrap()` before render, or from an effect in `App.jsx` — implementer's call, document whichever is chosen)
+- Modify: `src/main.jsx` (replace the inline hydration block with a call to `bootstrap()`)
 
 **Interfaces:**
 - Consumes: `useProfileStore`, `useTaskStore`, `useDailyQuestStore`, `useShopStore` (their `load*` actions and `useProfileStore`'s `setHpAndCheckDate`); `computeHpPenalty` from `domain/hpPenalty.js`; `flushPendingSync` from `services/dataService.js`.
-- Produces: `bootstrap(today: string = todayISO()): Promise<void>` — loads all four stores, runs the HP penalty check against `useDailyQuestStore().hasCompletionOnDate`, persists any resulting hp/date change, and registers a `window` `online` listener that calls `flushPendingSync`.
+- Produces: `bootstrap(today: string = todayISO()): Promise<void>` — hydrates all four stores (with the existing 2.5s timeout race so a slow backend can't hang the UI), runs the HP penalty check against `useDailyQuestStore().hasCompletionOnDate`, persists any resulting hp/date change, and registers a `window` `online` listener that calls `flushPendingSync`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3307,7 +3311,7 @@ vi.mock('../state/useDailyQuestStore.js', () => ({
   useDailyQuestStore: { getState: () => ({ loadQuests, hasCompletionOnDate }) },
 }))
 vi.mock('../state/useShopStore.js', () => ({ useShopStore: { getState: () => ({ loadShop }) } }))
-vi.mock('./dataService.js', () => ({ flushPendingSync: vi.fn() }))
+vi.mock('./dataService.js', () => ({ flushPendingSync: vi.fn().mockResolvedValue(undefined) }))
 
 import { flushPendingSync } from './dataService.js'
 import { bootstrap } from './bootstrap.js'
@@ -3315,12 +3319,13 @@ import { bootstrap } from './bootstrap.js'
 describe('bootstrap', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('loads all 4 stores', async () => {
+  it('loads all 4 stores and flushes any pending offline writes', async () => {
     await bootstrap('2026-07-27')
     expect(loadProfile).toHaveBeenCalled()
     expect(loadTasks).toHaveBeenCalled()
     expect(loadQuests).toHaveBeenCalled()
     expect(loadShop).toHaveBeenCalled()
+    expect(flushPendingSync).toHaveBeenCalled()
   })
 
   it('runs the HP penalty check and persists the result', async () => {
@@ -3334,7 +3339,17 @@ describe('bootstrap', () => {
     const [event, handler] = addEventListenerSpy.mock.calls.find(([e]) => e === 'online')
     expect(event).toBe('online')
     handler()
-    expect(flushPendingSync).toHaveBeenCalled()
+    expect(flushPendingSync).toHaveBeenCalledTimes(2) // once during bootstrap, once from the listener
+  })
+
+  it('resolves even if a store load hangs, once the timeout elapses', async () => {
+    vi.useFakeTimers()
+    loadProfile.mockReturnValue(new Promise(() => {})) // never resolves
+    const done = vi.fn()
+    bootstrap('2026-07-27').then(done)
+    await vi.advanceTimersByTimeAsync(2500)
+    expect(done).toHaveBeenCalled()
+    vi.useRealTimers()
   })
 })
 ```
@@ -3355,17 +3370,31 @@ import { useShopStore } from '../state/useShopStore.js'
 import { computeHpPenalty } from '../domain/hpPenalty.js'
 import { flushPendingSync } from './dataService.js'
 
+const HYDRATION_TIMEOUT_MS = 2500
+
 function todayISO() {
   return format(new Date(), 'yyyy-MM-dd')
 }
 
 export async function bootstrap(today = todayISO()) {
-  await Promise.all([
+  // A slow/unreachable backend must not hold the UI hostage -- readTable
+  // already falls back to the LocalStorage mirror, so racing against a
+  // timeout just caps how long the first paint waits for it.
+  const hydrated = Promise.allSettled([
+    flushPendingSync(),
     useProfileStore.getState().loadProfile(),
     useTaskStore.getState().loadTasks(),
     useDailyQuestStore.getState().loadQuests(),
     useShopStore.getState().loadShop(),
   ])
+
+  let timeoutId
+  const timeout = new Promise((resolve) => {
+    timeoutId = setTimeout(resolve, HYDRATION_TIMEOUT_MS)
+  })
+  hydrated.finally(() => clearTimeout(timeoutId))
+
+  await Promise.race([hydrated, timeout])
 
   const profile = useProfileStore.getState()
   const dailyQuests = useDailyQuestStore.getState()
@@ -3384,9 +3413,9 @@ export async function bootstrap(today = todayISO()) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npm test -- src/services/bootstrap.test.js`
-Expected: PASS (3 tests).
+Expected: PASS (4 tests).
 
-- [ ] **Step 5: Call `bootstrap()` from `main.jsx` before rendering**
+- [ ] **Step 5: Replace `main.jsx`'s inline hydration with a call to `bootstrap()`**
 
 ```jsx
 import { StrictMode } from 'react'
@@ -3396,22 +3425,24 @@ import './index.css'
 import App from './App.jsx'
 import { bootstrap } from './services/bootstrap.js'
 
-bootstrap()
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-)
+bootstrap().then(() => {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </StrictMode>,
+  )
+})
 ```
+
+Delete the inline `Promise.allSettled`/timeout-race block and its now-unused imports (`useProfileStore`, `useTaskStore`, `useDailyQuestStore`, `useShopStore`, `flushPendingSync`) from `main.jsx` — that logic now lives in `bootstrap.js`. While you're touching this file, fix the stale comment left over from Task 25's fix rounds: it still attributes the `loaded`-flag gating to `ProfileHeader`, but that responsibility moved to `SystemWatcher` in a later fix round — update or remove the comment (the "why" now belongs in `bootstrap.js`'s own comment from Step 3 above).
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/services/bootstrap.js src/services/bootstrap.test.js src/main.jsx
-git commit -m "feat: wire app boot sequence with HP check and offline sync"
+git commit -m "feat: extract boot sequence into bootstrap.js with HP check and offline sync"
 ```
 
 ---
