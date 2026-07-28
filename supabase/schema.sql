@@ -31,6 +31,9 @@ create table if not exists tasks (
   status text not null default 'todo' check (status in ('todo','in_progress','done')),
   due_date date,
   completed_at timestamptz,
+  -- Soft delete: null means live. Deliberately no default — a task is deleted
+  -- only when the client stamps this.
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

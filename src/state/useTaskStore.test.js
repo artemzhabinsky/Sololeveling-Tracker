@@ -42,20 +42,32 @@ describe('useTaskStore', () => {
     expect(profileActions.awardCoins).toHaveBeenCalledWith(20)
     expect(profileActions.incrementAttribute).toHaveBeenCalledWith('attr_str', 100)
     expect(useTaskStore.getState().tasks[0].status).toBe('done')
-    expect(writeRow).toHaveBeenCalledWith('analytics_logs', expect.objectContaining({ tasks_completed: 1 }))
+    // Keyed on log_date, not id: the merged row has no id and log_date is unique.
+    expect(writeRow).toHaveBeenCalledWith(
+      'analytics_logs',
+      expect.objectContaining({ tasks_completed: 1 }),
+      { onConflict: 'log_date' },
+    )
   })
 
-  it('deleteTask removes the task and persists', async () => {
+  it('deleteTask soft-deletes with a deleted_at stamp on the full row', async () => {
     await useTaskStore.getState().createTask({ title: 'Отжаться', category: 'physical', rank: 'D', dueDate: null })
     const id = useTaskStore.getState().tasks[0].id
+
     await useTaskStore.getState().deleteTask(id)
+
     expect(useTaskStore.getState().tasks).toHaveLength(0)
+    // The whole row, so the upsert's INSERT arm still satisfies the NOT NULL columns.
+    expect(writeRow).toHaveBeenCalledWith('tasks', expect.objectContaining({
+      id, title: 'Отжаться', category: 'physical', rank: 'D',
+      deleted_at: expect.any(String),
+    }))
   })
 
   it('loadTasks filters out soft-deleted rows', async () => {
     readTable.mockResolvedValueOnce([
       { id: '1', title: 'Отжаться', status: 'todo' },
-      { id: '2', title: 'Присесть', status: 'todo', _deleted: true },
+      { id: '2', title: 'Присесть', status: 'todo', deleted_at: '2026-07-27T10:00:00.000Z' },
       { id: '3', title: 'Пробежка', status: 'done' },
     ])
 

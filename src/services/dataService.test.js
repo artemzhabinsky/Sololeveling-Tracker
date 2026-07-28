@@ -26,8 +26,36 @@ describe('dataService', () => {
 
     expect(result).toEqual({ ok: true, offline: false })
     expect(upsert).toHaveBeenCalledWith({ id: '1', title: 'Test' })
+    // No second argument at all when no conflict target is given — the plain
+    // call shape every other store still relies on.
+    expect(upsert.mock.calls[0]).toHaveLength(1)
     expect(getItem('sololeveling:tasks', [])).toEqual([{ id: '1', title: 'Test' }])
     expect(getQueue()).toHaveLength(0)
+  })
+
+  it('writeRow forwards an onConflict target to the upsert when one is given', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    supabase.from.mockReturnValue({ upsert })
+
+    await writeRow('analytics_logs', { log_date: '2026-07-27', xp_gained: 100 }, { onConflict: 'log_date' })
+
+    expect(upsert).toHaveBeenCalledWith(
+      { log_date: '2026-07-27', xp_gained: 100 },
+      { onConflict: 'log_date' },
+    )
+  })
+
+  it('writeRow replays a queued write against its original conflict target', async () => {
+    const failingUpsert = vi.fn().mockResolvedValue({ error: new Error('down') })
+    supabase.from.mockReturnValue({ upsert: failingUpsert })
+    await writeRow('analytics_logs', { log_date: '2026-07-27' }, { onConflict: 'log_date' })
+
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    supabase.from.mockReturnValue({ upsert })
+    const result = await flushPendingSync()
+
+    expect(result).toEqual({ succeeded: 1, remaining: 0 })
+    expect(upsert).toHaveBeenCalledWith({ log_date: '2026-07-27' }, { onConflict: 'log_date' })
   })
 
   it('writeRow falls back to the queue when Supabase errors', async () => {

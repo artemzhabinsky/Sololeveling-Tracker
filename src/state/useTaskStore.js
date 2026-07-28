@@ -16,7 +16,7 @@ export const useTaskStore = create((set, get) => ({
 
   async loadTasks() {
     const tasks = await readTable('tasks')
-    set({ tasks: tasks.filter((t) => !t._deleted), loaded: true })
+    set({ tasks: tasks.filter((t) => !t.deleted_at), loaded: true })
   },
 
   async createTask({ title, category, rank, dueDate }) {
@@ -53,13 +53,22 @@ export const useTaskStore = create((set, get) => ({
     const existingLogs = await readTable('analytics_logs')
     const existingRow = existingLogs.find((r) => r.log_date === logDate) ?? null
     const mergedLog = mergeAnalyticsLog(existingRow, { logDate, xpGained: task.xp_reward, category: task.category })
-    await writeRow('analytics_logs', mergedLog)
+    // mergeAnalyticsLog produces no id, so Supabase needs the natural key to
+    // recognise today's row — otherwise the day's second completion collides
+    // with the unique log_date index.
+    await writeRow('analytics_logs', mergedLog, { onConflict: 'log_date' })
 
     return levelResult
   },
 
   async deleteTask(id) {
+    const task = get().tasks.find((t) => t.id === id)
+    if (!task) return
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
-    await writeRow('tasks', { id, _deleted: true })
+    // The whole row goes up, not just { id, deleted_at }: PostgREST's upsert is
+    // INSERT ... ON CONFLICT, and Postgres checks NOT NULL against the proposed
+    // tuple before it ever detects the conflict — a partial payload would be
+    // rejected for the missing title/category/rank/reward columns.
+    await writeRow('tasks', { ...task, deleted_at: new Date().toISOString() })
   },
 }))

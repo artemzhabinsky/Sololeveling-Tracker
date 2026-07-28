@@ -14,12 +14,25 @@ function mirrorRow(table, payload) {
   setItem(cacheKey(table), rows)
 }
 
-export async function writeRow(table, payload) {
-  const { error } = await supabase.from(table).upsert(payload)
+// Rows keyed by their primary key upsert fine on `id` alone, but a table with a
+// natural unique key (analytics_logs.log_date) has no client-side id to send —
+// without an explicit conflict target every write is an INSERT and the second
+// one of the day dies on the unique constraint, which then jams the sync queue
+// forever (replayQueue stops at the first permanent failure).
+function upsertRow(table, payload, onConflict) {
+  const query = supabase.from(table)
+  return onConflict ? query.upsert(payload, { onConflict }) : query.upsert(payload)
+}
+
+export async function writeRow(table, payload, { onConflict } = {}) {
+  const { error } = await upsertRow(table, payload, onConflict)
   mirrorRow(table, payload)
 
   if (error) {
-    enqueue({ table, operation: 'upsert', payload })
+    // The conflict target rides along in the queued op: replaying an
+    // analytics_logs write as a plain upsert would fail for exactly the same
+    // reason it was queued in the first place.
+    enqueue({ table, operation: 'upsert', payload, onConflict })
     return { ok: false, offline: true }
   }
 
@@ -39,7 +52,7 @@ export async function readTable(table) {
 
 export async function flushPendingSync() {
   return replayQueue(async (op) => {
-    const { error } = await supabase.from(op.table).upsert(op.payload)
+    const { error } = await upsertRow(op.table, op.payload, op.onConflict)
     return !error
   })
 }
