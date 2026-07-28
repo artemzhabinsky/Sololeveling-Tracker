@@ -15,8 +15,9 @@ const options = {
   },
 }
 
-export default function CategoryDonutChart({ logs }) {
-  const { labels, values } = donutDataFromLogs(logs)
+export default function CategoryDonutChart({ logs, days = 7 }) {
+  // Scoped to the same period the line chart plots — see donutDataFromLogs.
+  const { labels, values } = donutDataFromLogs(logs, days)
   // Logs store category keys; the legend shows the human labels.
   const legendLabels = labels.map((key) => CATEGORIES.find((c) => c.key === key)?.label ?? key)
 

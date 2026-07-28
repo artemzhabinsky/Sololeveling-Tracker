@@ -75,12 +75,12 @@ export default function AnalyticsPage() {
         </article>
 
         <article className="sys-window sys-window--gold">
-          <h2>Категории</h2>
+          <h2>Категории за 7 дней</h2>
           <p className="mt-1 font-mono text-hud uppercase tracking-[0.16em] text-ash">
             Доля закрытых задач
           </p>
           <div className="mt-4 h-56">
-            <CategoryDonutChart logs={logs} />
+            <CategoryDonutChart logs={logs} days={7} />
           </div>
         </article>
       </div>

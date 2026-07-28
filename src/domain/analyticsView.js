@@ -21,9 +21,21 @@ export function lineDataFromLogs(logs, days, penaltyDates = [], today = format(n
   }
 }
 
-export function donutDataFromLogs(logs) {
+/**
+ * Category shares for the selected period — the last `days` days inclusive of
+ * `today`, matching the window lineDataFromLogs plots. Summing all history
+ * instead would make the donut drift towards whatever the player did most of,
+ * ever, rather than the week being reviewed.
+ *
+ * log_date is a plain 'yyyy-MM-dd' string and analytics_logs holds exactly one
+ * row per day, so lexicographic comparison is the same as chronological.
+ */
+export function donutDataFromLogs(logs, days = 7, today = format(new Date(), 'yyyy-MM-dd')) {
+  const from = format(subDays(parseISO(today), days - 1), 'yyyy-MM-dd')
+  const windowed = logs.filter((l) => l.log_date >= from && l.log_date <= today)
+
   const totals = {}
-  for (const log of logs) {
+  for (const log of windowed) {
     for (const [category, count] of Object.entries(log.category_breakdown ?? {})) {
       totals[category] = (totals[category] ?? 0) + count
     }
