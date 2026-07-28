@@ -5,6 +5,7 @@ export default function DailyQuestsPanel({ today }) {
   const quests = useDailyQuestStore((s) => s.quests)
   const createQuest = useDailyQuestStore((s) => s.createQuest)
   const toggleToday = useDailyQuestStore((s) => s.toggleToday)
+  const deactivateQuest = useDailyQuestStore((s) => s.deactivateQuest)
   const [title, setTitle] = useState('')
 
   function handleAdd(e) {
@@ -24,8 +25,11 @@ export default function DailyQuestsPanel({ today }) {
       ) : (
         <ul className="divide-y divide-edge border-y border-edge">
           {active.map((q) => (
-            <li key={q.id} className="transition-colors hover:bg-raised">
-              <label className="px-1">
+            <li
+              key={q.id}
+              className="flex flex-wrap items-center gap-3 transition-colors hover:bg-raised"
+            >
+              <label className="min-w-0 flex-1 px-1">
                 <input
                   type="checkbox"
                   checked={q.last_completed_date === today}
@@ -35,6 +39,17 @@ export default function DailyQuestsPanel({ today }) {
                   {q.title}
                 </span>
               </label>
+              {/* Retiring a quest rather than deleting it: the HP penalty check
+                  reads historic last_completed_date values, so the row has to
+                  survive its removal from the list. */}
+              <button
+                type="button"
+                className="sys-btn-quiet sys-btn-danger"
+                aria-label={`Отключить квест: ${q.title}`}
+                onClick={() => deactivateQuest(q.id)}
+              >
+                Отключить
+              </button>
             </li>
           ))}
         </ul>

@@ -1,11 +1,70 @@
+import { useEffect, useState } from 'react'
 import { useShopStore } from '../../state/useShopStore.js'
 import InventoryItem from './InventoryItem.jsx'
+
+function RewardForm({ onSubmit }) {
+  const [title, setTitle] = useState('')
+  const [cost, setCost] = useState('')
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    onSubmit({ title, cost: Number(cost) })
+    setTitle('')
+    setCost('')
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-5 flex flex-wrap items-end gap-3">
+      <div className="min-w-48 flex-1">
+        <label htmlFor="reward-title">Новая награда</label>
+        <input
+          id="reward-title"
+          name="reward-title"
+          autoComplete="off"
+          className="mt-1.5"
+          placeholder="Например: серия сериала…"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+      </div>
+      <div className="w-32">
+        <label htmlFor="reward-cost">Цена</label>
+        <input
+          id="reward-cost"
+          name="reward-cost"
+          type="number"
+          min="1"
+          className="mt-1.5"
+          placeholder="200"
+          value={cost}
+          onChange={(e) => setCost(e.target.value)}
+          required
+        />
+      </div>
+      <button type="submit" className="sys-btn-gold">
+        Добавить
+      </button>
+    </form>
+  )
+}
 
 export default function ShopView() {
   const rewards = useShopStore((s) => s.rewards)
   const inventory = useShopStore((s) => s.inventory)
   const purchase = useShopStore((s) => s.purchase)
   const useItem = useShopStore((s) => s.useItem)
+  const createReward = useShopStore((s) => s.createReward)
+  const refreshExpiry = useShopStore((s) => s.refreshExpiry)
+
+  // Expiry is stored as a timestamp, not a countdown, so nothing flips items to
+  // `expired` on its own — without this sweep a dead item keeps offering
+  // "Использовать" for as long as the tab stays open. Per-second ticking is a
+  // separate deferred item; catching up on mount is what stops the stale
+  // affordance.
+  useEffect(() => {
+    refreshExpiry()
+  }, [refreshExpiry])
 
   const activeInventory = inventory.filter((i) => i.status === 'active')
   const titleFor = (rewardId) => rewards.find((r) => r.id === rewardId)?.title
@@ -35,6 +94,8 @@ export default function ShopView() {
             ))}
           </ul>
         )}
+
+        <RewardForm onSubmit={createReward} />
       </section>
 
       <section>
